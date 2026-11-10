@@ -249,8 +249,11 @@ async function getReply(){
     save(); busy=false; drawCall();
   }catch(e){
     busy=false;
-    box.innerHTML = `<p class="err">The line dropped. Your message was kept.</p><button class="btn sm" id="retry" type="button">Try again</button>`;
-    $('#retry').onclick = getReply;
+    st.dropped = (st.dropped||0) + 1; save();
+    box.innerHTML = `<p class="err">The line dropped. Your message was kept.</p><p class="note">${esc((e&&e.message)||'')}</p>
+      <div class="row"><button class="btn sm" id="retry" type="button">Try again</button>${st.dropped>=2?'<button class="btn sm" id="skip" type="button" style="background:transparent;color:var(--ink);border:1px solid var(--line)">End the call and continue</button>':''}</div>`;
+    $('#retry').onclick = () => { $('#callin').innerHTML = '<p class="note"><span class="spin"></span> Reconnecting…</p>'; getReply(); };
+    const sk = $('#skip'); if (sk) sk.onclick = () => { st.callEnded = true; st.meta.callFailed = true; save(); drawCall(); };
   }
 }
 
