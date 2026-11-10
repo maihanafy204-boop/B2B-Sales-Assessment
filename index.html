@@ -60,7 +60,7 @@ th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted
 <main id="app"><div class="col"><p class="muted"><span class="spin"></span> Loading…</p></div></main>
 <script>
 /* When hosted on GitHub Pages: paste your Apps Script web app link (ends with /exec) here. */
-const API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzmrc4v8iDrK96DGbzLeQYyz_QXz1hQH8Yb3wrE6OXRmw-X-hYVFuh1Zs1HcNBJ7Cac/exec';
 const run = (fn, ...args) => (window.google && google.script && google.script.run)
   ? new Promise((res, rej) => google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](...args))
   : fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({fn, args})})
@@ -222,7 +222,7 @@ function doneScreen(){
     <p>Your assessment has been received. The hiring team will review it and contact you about next steps.</p></div>`;
 }
 
-run('getTest').then(t=>{ T=t; st=store.get(KEY); section(); }).catch(()=>{ $('#app').innerHTML='<div class="col"><p class="err">The assessment could not load. Please refresh the page.</p></div>'; });
+run('getTest').then(t=>{ T=t; st=store.get(KEY); section(); }).catch(e=>{ $('#app').innerHTML='<div class="col"><p class="err">The assessment could not load. Please refresh the page.</p><p class="note">Details: '+esc((e&&e.message)||e)+'</p></div>'; });
 </script>
 </body>
 </html>
