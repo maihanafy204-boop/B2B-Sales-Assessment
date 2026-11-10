@@ -97,8 +97,6 @@ let T = null, st = null, tick = null, busy = false;
 
 const SECS = [
   {k:'about', title:'About you', mins:3, intro:'Basic details and a few questions about your experience and availability.'},
-  {k:'brief', title:'Product brief', mins:2, intro:'Read this carefully. You will answer questions about it next and cannot come back here.'},
-  {k:'quiz', title:'Product check', mins:1, intro:'Answer from what you just read.'},
   {k:'sjt', title:'Sales situations', mins:8, intro:'Situations from selling Adrian Magnus cigars to shops, lounges and distributors. Choose what you would most likely do.'},
   {k:'tech', title:'Numbers and tools', mins:4, intro:'Short calculations. A calculator is allowed.'},
   {k:'mot', title:'Work preferences', mins:1, intro:'For each pair, choose the statement that is closer to you. There are no right answers.'},
@@ -124,7 +122,7 @@ function intro(){
     <p>Adrian Magnus makes premium and ultra-premium cigars and sells them to tobacconists, cigar lounges, wholesalers and distributors across the US and abroad. This assessment shows how you would sell them.</p>
     <div class="q"><h3>Before you start</h3>
       <div class="tw"><table><tbody>${SECS.map((s,i)=>`<tr><td>${i+1}</td><td>${s.title}</td><td class="muted">~${s.mins} min</td></tr>`).join('')}</tbody></table></div>
-      <p class="note">About 30 minutes, hard limit ${T.limit} minutes. The timer keeps running if you close the page. You cannot go back to a finished section. Work on your own: pasting text is disabled and leaving the page is recorded.</p>
+      <p class="note">About 25 minutes, hard limit ${T.limit} minutes. The timer keeps running if you close the page. You cannot go back to a finished section. Work on your own: pasting text is disabled and leaving the page is recorded.</p>
     </div>
     <div><button class="btn" id="go">Start the assessment</button></div></div>`;
   $('#go').onclick = ()=>{ st={start:Date.now(), sec:0, cand:{}, ans:{CALL:[]}, seed:Math.random().toString(36).slice(2), meta:{paste:0, blur:0}}; save(); section(); };
@@ -159,6 +157,7 @@ function section(){
   else if(S.k==='mot') body = T.mot.map((i,n)=>{const v=st.ans[i.id];
       return `<div class="q"><div class="num">${n+1} of ${T.mot.length}</div>${i.text?`<div>${esc(i.text)}</div>`:''}<div class="fc">${i.opts.map((o,ix)=>`<label class="opt ${v===ix?'sel':''}"><input type="radio" name="${i.id}" value="${ix}" ${v===ix?'checked':''}><span>${esc(o)}</span></label>`).join('')}</div></div>`}).join('');
   else if(S.k==='call') body = `<div class="brief"><p><b>You are calling Daniel Reyes</b>, owner of Casa Humo, a tobacconist with a walk-in humidor in Charlotte, North Carolina. He has never heard of Adrian Magnus.</p>
+      <p><b>What you sell:</b> Adrian Magnus premium cigars, aged 5 to 15 years, including cognac-infused options. You don't need to know more about the product.</p>
       <p><b>Your goal:</b> understand his shop and agree a first order or a clear next step.</p>
       <p><b>Your limits:</b> discount up to 8%, only in exchange for something · payment terms 30 days for new accounts · free shipping over USD 500.</p>
       <p class="note">Up to ${T.maxTurns} messages. The call ends when you and Daniel wrap up.</p></div><div id="chat" class="chat"></div><div id="callin"></div>`;
