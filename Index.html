@@ -59,7 +59,12 @@ th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted
 <header class="band"><div class="band-in"><div class="wordmark">Adrian Magnus<small>B2B Sales Executive · Assessment</small></div><div id="timer" class="timer" hidden></div></div></header>
 <main id="app"><div class="col"><p class="muted"><span class="spin"></span> Loading…</p></div></main>
 <script>
-const run = (fn, ...args) => new Promise((res, rej) => google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](...args));
+/* When hosted on GitHub Pages: paste your Apps Script web app link (ends with /exec) here. */
+const API_URL = 'PASTE_YOUR_WEB_APP_URL_HERE';
+const run = (fn, ...args) => (window.google && google.script && google.script.run)
+  ? new Promise((res, rej) => google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn](...args))
+  : fetch(API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({fn, args})})
+      .then(r => r.json()).then(j => { if(!j.ok) throw new Error(j.error); return j.data; });
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store = {get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}, del(k){try{localStorage.removeItem(k)}catch(e){}}};
