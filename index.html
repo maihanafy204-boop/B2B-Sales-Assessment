@@ -92,14 +92,17 @@ const run = (fn, ...args) => (window.google && google.script && google.script.ru
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store = {get(k){try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}, del(k){try{localStorage.removeItem(k)}catch(e){}}};
-const KEY = 'am-gas-v1';
+const KEY = 'am-gas-v2';
 let T = null, st = null, tick = null, busy = false;
 
+const SCREEN_IDS = ['pan','sched','tob','start'];
+const FIRST_TEST = 2;   // sections before this index are the application
 const SECS = [
-  {k:'about', title:'About you', mins:3, intro:'Basic details and a few questions about your experience and availability.'},
+  {k:'screen', title:'Quick screening', mins:1, intro:'Four quick questions about the basics of the role.'},
+  {k:'about', title:'Job application', mins:3, intro:'Tell us about yourself. All fields are required unless marked optional.'},
+  {k:'mot', title:'Work preferences', mins:1, intro:'For each pair, choose the statement that is closer to you. There are no right answers.'},
   {k:'sjt', title:'Sales situations', mins:9, intro:'Situations from selling Adrian Magnus cigars to shops, lounges and distributors. Choose what you would most likely do.'},
   {k:'tech', title:'Sales numbers', mins:2, intro:'Three quick calculations. A calculator is allowed.'},
-  {k:'mot', title:'Work preferences', mins:1, intro:'For each pair, choose the statement that is closer to you. There are no right answers.'},
   {k:'call', title:'Client call', mins:8, intro:'A written phone call with a real-time client. He reacts to what you write. Write as you would speak on the phone, 1–4 sentences per message.'},
   {k:'write', title:'After the call', mins:4, intro:'Every call ends with a recap email and a CRM note. Write both for your call with Daniel.'}
 ];
@@ -116,16 +119,34 @@ function startTimer(){
 document.addEventListener('visibilitychange', ()=>{ if(st && !st.done && document.hidden){ st.meta.blur++; save(); }});
 
 function intro(){
+  $('#timer').hidden = true;
   $('#app').innerHTML = `<div class="col">
-    <div class="eyebrow">Candidate assessment</div>
+    <div class="eyebrow">Now hiring · Panama</div>
     <h1>B2B Sales Executive · Adrian Magnus</h1>
-    <p>Adrian Magnus makes premium and ultra-premium cigars and sells them to tobacconists, cigar lounges, wholesalers and distributors across the US and abroad. This assessment shows how you would sell them.</p>
-    <div class="q"><h3>Before you start</h3>
-      <div class="tw"><table><tbody>${SECS.map((s,i)=>`<tr><td>${i+1}</td><td>${s.title}</td><td class="muted">~${s.mins} min</td></tr>`).join('')}</tbody></table></div>
-      <p class="note">About 25 minutes, hard limit ${T.limit} minutes. The timer keeps running if you close the page. You cannot go back to a finished section. Use a laptop or computer. Work on your own: pasting text is disabled and leaving the page is recorded.</p>
+    <p>Adrian Magnus makes premium and ultra-premium cigars and sells them to tobacconists, cigar lounges, wholesalers and distributors in the US and abroad. We are looking for sales agents who enjoy finding new clients, building relationships and closing deals by phone, email and WhatsApp.</p>
+    <div class="q"><h3>How to apply</h3>
+      <div class="tw"><table><tbody>
+        <tr><td>1</td><td>Quick screening</td><td class="muted">~1 min</td></tr>
+        <tr><td>2</td><td>Job application</td><td class="muted">~3 min</td></tr>
+        <tr><td>3</td><td>Sales assessment: work preferences, sales situations, numbers, a client call and a follow-up email</td><td class="muted">~25 min</td></tr>
+      </tbody></table></div>
+      <p class="note">Use a laptop or computer. You can do the assessment right after your application.</p>
     </div>
-    <div><button class="btn" id="go">Start the assessment</button></div></div>`;
-  $('#go').onclick = ()=>{ st={start:Date.now(), sec:0, cand:{}, ans:{CALL:[]}, seed:Math.random().toString(36).slice(2), meta:{paste:0, blur:0}}; save(); section(); };
+    <div><button class="btn" id="go">Apply now</button></div></div>`;
+  $('#go').onclick = ()=>{ st={start:null, sec:0, cand:{}, ans:{CALL:[]}, seed:Math.random().toString(36).slice(2), meta:{paste:0, blur:0}}; save(); section(); };
+}
+function fieldsFor(k){ return T.about.filter(i => (SCREEN_IDS.indexOf(i.id) >= 0) === (k === 'screen')); }
+function knockedOut(){ const c=st.cand; return c.pan==='No' || c.sched==='No' || c.tob==='No'; }
+function gate(){
+  $('#timer').hidden = true;
+  $('#app').innerHTML = `<div class="col">
+    <div class="eyebrow">Application saved</div>
+    <h1>Next: the sales assessment</h1>
+    <p>Thank you${st.cand.name?', '+esc(st.cand.name.split(' ')[0]):''}. The last step shows how you sell. Start it when you have about 25 minutes without interruptions.</p>
+    <div class="q"><div class="tw"><table><tbody>${SECS.slice(FIRST_TEST).map((x,i)=>`<tr><td>${i+1}</td><td>${x.title}</td><td class="muted">~${x.mins} min</td></tr>`).join('')}</tbody></table></div>
+      <p class="note">Hard limit ${T.limit} minutes. The timer starts when you click Start and keeps running if you close the page. You cannot go back to a finished section. Work on your own: pasting text is disabled and leaving the page is recorded.</p></div>
+    <div><button class="btn" id="go">Start the sales assessment</button></div></div>`;
+  $('#go').onclick = ()=>{ st.start=Date.now(); st.sec=FIRST_TEST; save(); section(); };
 }
 
 function mc(i, n, total){
@@ -147,9 +168,11 @@ function section(){
   if(!st) return intro();
   if(st.done) return doneScreen();
   if(st.sec >= SECS.length) return finish(false);
-  startTimer();
+  if(st.sec >= FIRST_TEST && !st.start) return gate();
+  if(st.sec >= FIRST_TEST) startTimer(); else $('#timer').hidden = true;
   const S = SECS[st.sec]; let body = '';
-  if(S.k==='about') body = `<div class="q"><div class="grid2">${T.about.map(i=>{const v=st.cand[i.id]||'';
+  if(S.k==='about'||S.k==='screen') body = `<div class="q"><div class="grid2">${fieldsFor(S.k).map(i=>{const v=st.cand[i.id]||'';
+      if(i.type==='check') return `<label class="opt" style="grid-column:1/-1"><input type="checkbox" id="c-${i.id}" ${v?'checked':''}><span>${esc(i.label)}</span></label>`;
       return i.type==='select' ? `<label class="f">${esc(i.label)}<select id="c-${i.id}"><option value="">Choose…</option>${i.opts.map(o=>`<option ${v===o?'selected':''}>${esc(o)}</option>`).join('')}</select></label>`
       : `<label class="f">${esc(i.label)}${i.optional?' <span class="muted" style="font-weight:400">(optional)</span>':''}<input id="c-${i.id}" type="${i.type}" value="${esc(v)}" autocomplete="off"></label>`}).join('')}</div></div>`;
   else if(S.k==='brief') body = briefHTML();
@@ -164,15 +187,15 @@ function section(){
   else if(S.k==='write') body = `<div class="q"><label class="f" for="w-W1">Recap email to Daniel (60–120 words): what you discussed and the next steps.</label><textarea id="w-W1">${esc(st.ans.W1||'')}</textarea><div class="note" id="wc">0 words</div></div>
       <div class="q"><label class="f" for="w-W2">CRM note for the account (1–3 lines): status, key facts, next action and date.</label><textarea id="w-W2" style="min-height:90px">${esc(st.ans.W2||'')}</textarea></div>`;
   $('#app').innerHTML = `<div class="col">
-    <div class="progress"><i style="width:${Math.round(st.sec/SECS.length*100)}%"></i></div>
-    <div class="eyebrow">Section ${st.sec+1} of ${SECS.length} · ~${S.mins} min</div>
+    ${st.sec>=FIRST_TEST?`<div class="progress"><i style="width:${Math.round((st.sec-FIRST_TEST)/(SECS.length-FIRST_TEST)*100)}%"></i></div>`:''}
+    <div class="eyebrow">${st.sec>=FIRST_TEST?`Assessment · section ${st.sec-FIRST_TEST+1} of ${SECS.length-FIRST_TEST} · ~${S.mins} min`:`Step ${st.sec+1} of 3 · ~${S.mins} min`}</div>
     <h2>${S.title}</h2><p class="muted">${S.intro}</p>${body}
-    <div class="row spread"><span class="err" id="err"></span><button class="btn" id="next">${st.sec===SECS.length-1?'Submit assessment':'Continue'}</button></div></div>`;
+    <div class="row spread"><span class="err" id="err"></span><button class="btn" id="next">${st.sec===SECS.length-1?'Submit assessment':st.sec===1?'Submit application':'Continue'}</button></div></div>`;
   window.scrollTo(0,0);
   const app = $('#app');
   app.onchange = app.oninput = e => {
     const t = e.target;
-    if(t.id && t.id.startsWith('c-')) st.cand[t.id.slice(2)] = t.value;
+    if(t.id && t.id.startsWith('c-')) st.cand[t.id.slice(2)] = t.type==='checkbox' ? (t.checked?'Yes':'') : t.value;
     else if(t.id && t.id.startsWith('w-')) { st.ans[t.id.slice(2)] = t.value; if(t.id==='w-W1') $('#wc').textContent = words(t.value)+' words'; }
     else if(t.type==='radio'){ st.ans[t.name] = +t.value; t.closest('.opts,.fc').querySelectorAll('label').forEach(l=>l.classList.toggle('sel', l.contains(t))); }
     save();
@@ -184,13 +207,15 @@ function section(){
     if(busy) return;
     const miss = missing(S.k);
     if(miss) return err(miss);
+    if(S.k==='screen'){ if(knockedOut()) return finish(false, true); st.sec=1; save(); return section(); }
+    if(S.k==='about'){ st.sec=FIRST_TEST; save(); return gate(); }
     st.sec++; save(); section();
   };
 }
 function words(s){ return String(s||'').trim().split(/\s+/).filter(Boolean).length; }
 function err(m){ const e=$('#err'); if(e) e.textContent=m; }
 function missing(k){
-  if(k==='about'){ const n=T.about.filter(i=>!i.optional && !st.cand[i.id]).length; if(n) return `Please answer all questions (${n} left).`; if(!/^\S+@\S+\.\S+$/.test(st.cand.email||'')) return 'Please enter a valid email.'; }
+  if(k==='screen'||k==='about'){ const n=fieldsFor(k).filter(i=>!i.optional && !st.cand[i.id]).length; if(n) return k==='about'&&!st.cand.consent&&n===1?'Please tick the consent box.':`Please answer all questions (${n} left).`; if(k==='about'&&!/^\S+@\S+\.\S+$/.test(st.cand.email||'')) return 'Please enter a valid email.'; }
   if(['quiz','sjt','tech','mot'].includes(k)){ const n=T[k].filter(i=>st.ans[i.id]==null).length; if(n) return `Please answer all questions (${n} left).`; }
   if(k==='call' && !st.callEnded) return 'Finish the call first.';
   if(k==='write' && (words(st.ans.W1)<30 || words(st.ans.W2)<5)) return 'Please write the recap email (at least 30 words) and the CRM note.';
@@ -230,19 +255,19 @@ async function getReply(){
 }
 
 /* ---- submit ---- */
-async function finish(timeout){
+async function finish(timeout, screened){
   clearInterval(tick);
   if(st.done) return doneScreen();
   $('#timer').hidden = true;
   $('#app').innerHTML = `<div class="col"><h2>Submitting…</h2><p class="muted"><span class="spin"></span> Please keep this page open. This takes up to a minute.</p></div>`;
-  const payload = {cand:st.cand, ans:st.ans, meta:{...st.meta, seconds:Math.min(T.limit*60, Math.floor((Date.now()-st.start)/1000)), timeout:!!timeout}};
-  try{ await run('submit', payload); st.done = true; save(); doneScreen(); }
-  catch(e){ $('#app').innerHTML = `<div class="col"><h2>Your answers were not sent yet</h2><p>Check your internet connection and try again. Your answers are kept on this device.</p><div><button class="btn" id="again">Send again</button></div></div>`; $('#again').onclick=()=>finish(timeout); }
+  const payload = {cand:st.cand, ans:st.ans, meta:{...st.meta, seconds: st.start ? Math.min(T.limit*60, Math.floor((Date.now()-st.start)/1000)) : 0, timeout:!!timeout, screenedOut:!!screened}};
+  try{ await run('submit', payload); st.done = true; st.screened = !!screened; save(); doneScreen(); }
+  catch(e){ $('#app').innerHTML = `<div class="col"><h2>Your answers were not sent yet</h2><p>Check your internet connection and try again. Your answers are kept on this device.</p><div><button class="btn" id="again">Send again</button></div></div>`; $('#again').onclick=()=>finish(timeout, screened); }
 }
 function doneScreen(){
   $('#timer').hidden = true;
   $('#app').innerHTML = `<div class="col"><div class="eyebrow">Submitted</div><h1>Thank you${st.cand.name?', '+esc(st.cand.name.split(' ')[0]):''}.</h1>
-    <p>Your assessment has been received. The hiring team will review it and contact you about next steps.</p></div>`;
+    <p>${st.screened?'Your application has been received. The hiring team will review it and contact you if your profile matches the role.':'Your application and assessment have been received. The hiring team will review them and contact you about next steps.'}</p></div>`;
 }
 
 run('getTest').then(t=>{ T=t; st=store.get(KEY); section(); }).catch(e=>{ $('#app').innerHTML='<div class="col"><p class="err">The assessment could not load. Please refresh the page.</p><p class="note">Details: '+esc((e&&e.message)||e)+'</p></div>'; });
